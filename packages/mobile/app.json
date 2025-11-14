@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Tethered",
+    "slug": "tethered",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "entryPoint": "./index.js",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0F0F0F"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tethered.app"
+    },
+    "android": {
+      "package": "com.tethered.app"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Tethered to access your photos to share moments with family."
+        }
+      ]
+    ]
+  }
+}
