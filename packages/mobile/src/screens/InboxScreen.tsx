@@ -2,14 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { MainTabScreenProps } from '../navigation/types';
 import ScreenContainer from '../components/ScreenContainer';
-import Card from '../components/Card';
+import ActivityCard from '../components/ActivityCard';
 import {
   useAuth,
+  userProfileService,
   familyConnectionService,
   messageService,
   Message,
+  UserProfile,
 } from '@tethered/shared';
-import { colors, spacing, typography } from '../theme';
+import { colors, spacing, getUserThemeColors } from '../theme';
 
 type Props = MainTabScreenProps<'Inbox'>;
 
@@ -17,6 +19,8 @@ export default function InboxScreen({ navigation }: Props) {
   const { user } = useAuth();
 
   const [messages, setMessages] = useState<Message[]>([]);
+  const [partner, setPartner] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -28,7 +32,15 @@ export default function InboxScreen({ navigation }: Props) {
     if (!user) return;
 
     try {
-      const connectionId = await familyConnectionService.getConnectionId(user.id);
+      const [connectionId, userProfile, partnerProfile] = await Promise.all([
+        familyConnectionService.getConnectionId(user.id),
+        userProfileService.getProfile(user.id),
+        familyConnectionService.getConnectionPartner(user.id),
+      ]);
+
+      setProfile(userProfile);
+      setPartner(partnerProfile);
+
       if (connectionId) {
         const msgs = await messageService.getMessages(connectionId);
         setMessages(msgs);
@@ -48,24 +60,19 @@ export default function InboxScreen({ navigation }: Props) {
 
   const renderMessage = ({ item }: { item: Message }) => {
     const isMyMessage = item.sender_id === user?.id;
+    const sender = isMyMessage ? profile : partner;
+    const senderTheme = sender ? getUserThemeColors(sender.user_type) : null;
 
     return (
-      <Card style={[styles.messageCard, isMyMessage && styles.myMessageCard]}>
-        <View style={styles.messageHeader}>
-          <Text style={styles.messageType}>
-            {item.message_type === 'checkin' && '📝 Check-in'}
-            {item.message_type === 'reply' && '💬 Reply'}
-            {item.message_type === 'prompt_response' && '❓ Prompt Response'}
-          </Text>
-          <Text style={styles.messageTime}>
-            {new Date(item.created_at).toLocaleDateString()} {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </Text>
-        </View>
-
-        {item.emoji && <Text style={styles.emoji}>{item.emoji}</Text>}
-
-        <Text style={styles.messageText}>{item.message_text}</Text>
-      </Card>
+      <ActivityCard
+        emoji={sender?.name.charAt(0) || '?'}
+        emojiBackground={senderTheme?.light || (isMyMessage ? colors.studentLight : colors.parentLight)}
+        borderColor={senderTheme?.main || (isMyMessage ? colors.student : colors.parent)}
+        title={isMyMessage ? 'You' : `From ${partner?.name || 'Partner'}`}
+        subtitle={item.message_text}
+        timestamp={new Date(item.created_at).toLocaleDateString()}
+        photo={item.photo_url}
+      />
     );
   };
 
@@ -80,15 +87,21 @@ export default function InboxScreen({ navigation }: Props) {
   }
 
   return (
-    <View style={styles.container}>
+    <ScreenContainer style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Inbox</Text>
+        {partner && (
+          <Text style={styles.subtitle}>Your connection with {partner.name}</Text>
+        )}
       </View>
 
       {messages.length === 0 ? (
         <View style={styles.empty}>
+          <View style={styles.emptyIcon}>
+            <Text style={styles.emptyIconText}>💬</Text>
+          </View>
           <Text style={styles.emptyText}>No messages yet</Text>
-          <Text style={styles.emptySubtext}>Send your first check-in to get started!</Text>
+          <Text style={styles.emptySubtext}>Start the conversation by sending a check-in</Text>
         </View>
       ) : (
         <FlatList
@@ -101,58 +114,32 @@ export default function InboxScreen({ navigation }: Props) {
           }
         />
       )}
-    </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: colors.background,
   },
   header: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing['2xl'],
-    paddingBottom: spacing.base,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingTop: spacing['3xl'],
+    paddingBottom: spacing.lg,
   },
   title: {
-    fontSize: typography.fontSize['2xl'],
-    fontWeight: typography.fontWeight.bold,
+    fontSize: 38,
+    fontWeight: 'bold',
     color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
   },
   list: {
     padding: spacing.lg,
-  },
-  messageCard: {
-    marginBottom: spacing.base,
-  },
-  myMessageCard: {
-    backgroundColor: colors.backgroundTertiary,
-  },
-  messageHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  messageType: {
-    fontSize: typography.fontSize.xs,
-    color: colors.primary,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  messageTime: {
-    fontSize: typography.fontSize.xs,
-    color: colors.textTertiary,
-  },
-  emoji: {
-    fontSize: typography.fontSize['2xl'],
-    marginBottom: spacing.sm,
-  },
-  messageText: {
-    fontSize: typography.fontSize.base,
-    color: colors.text,
+    gap: spacing.base,
   },
   center: {
     flex: 1,
@@ -160,24 +147,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: typography.fontSize.lg,
+    fontSize: 18,
     color: colors.textSecondary,
   },
   empty: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing['4xl'],
+  },
+  emptyIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.backgroundTertiary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.base,
+  },
+  emptyIconText: {
+    fontSize: 48,
   },
   emptyText: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.semibold,
+    fontSize: 22,
+    fontWeight: '600',
     color: colors.text,
-    marginBottom: spacing.sm,
+    textAlign: 'center',
+    marginBottom: spacing.xs,
   },
   emptySubtext: {
-    fontSize: typography.fontSize.sm,
+    fontSize: 15,
     color: colors.textSecondary,
     textAlign: 'center',
+    maxWidth: 300,
+    lineHeight: 22,
   },
 });

@@ -34,7 +34,7 @@ export default function Input({
       {label && <Text style={styles.label}>{label}</Text>}
       <View style={styles.inputWrapper}>
         <TextInput
-          style={[styles.input, error && styles.inputError]}
+          style={[styles.input, error ? styles.inputError : undefined]}
           placeholderTextColor={colors.textTertiary}
           keyboardType={keyboardType}
           secureTextEntry={isPassword && !showPassword}

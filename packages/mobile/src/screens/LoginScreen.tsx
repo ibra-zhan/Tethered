@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet, Alert, TouchableOpacity, TextInput } from 'react-native';
 import { AuthStackScreenProps } from '../navigation/types';
 import ScreenContainer from '../components/ScreenContainer';
-import Button from '../components/Button';
-import Input from '../components/Input';
 import { useAuth } from '@tethered/shared';
-import { colors, spacing, typography } from '../theme';
+import { colors, spacing } from '../theme';
 
 type Props = AuthStackScreenProps<'Login'>;
+
+// Purple theme for login (user type unknown)
+const loginTheme = {
+  main: '#B8A5C8',
+  dark: '#9885A8',
+};
 
 export default function LoginScreen({ navigation }: Props) {
   const { signIn } = useAuth();
@@ -15,21 +19,18 @@ export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState('');
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const validate = (): boolean => {
-    const newErrors: Record<string, string> = {};
+    setError('');
 
-    if (!email) {
-      newErrors.email = 'Email is required';
+    if (!email || !password) {
+      setError('Please fill in all fields');
+      return false;
     }
 
-    if (!password) {
-      newErrors.password = 'Password is required';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return true;
   };
 
   const handleLogin = async () => {
@@ -76,34 +77,84 @@ export default function LoginScreen({ navigation }: Props) {
   };
 
   return (
-    <ScreenContainer scroll>
+    <ScreenContainer style={styles.container} scroll>
+      {/* Back button */}
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <Text style={styles.backIcon}>←</Text>
+      </TouchableOpacity>
+
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Welcome Back</Text>
-        <Text style={styles.subtitle}>Log in to your account</Text>
+        <Text style={styles.subtitle}>Sign in to continue</Text>
       </View>
 
-      <View style={styles.form}>
-        <Input
-          label="Email"
-          type="email"
-          value={email}
-          onChangeText={setEmail}
-          placeholder="your@email.com"
-          error={errors.email}
-        />
-        <Input
-          label="Password"
-          type="password"
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Your password"
-          error={errors.password}
-        />
+      {/* Form Card */}
+      <View style={styles.formCard}>
+        {/* Email Input */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            placeholder="you@college.edu"
+            placeholderTextColor={colors.textTertiary}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            style={[
+              styles.input,
+              focusedField === 'email' && { borderColor: loginTheme.main },
+            ]}
+            onFocus={() => setFocusedField('email')}
+            onBlur={() => setFocusedField(null)}
+          />
+        </View>
 
-        <Button title="Log In" onPress={handleLogin} loading={loading} size="lg" />
+        {/* Password Input */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Password</Text>
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Enter your password"
+            placeholderTextColor={colors.textTertiary}
+            secureTextEntry
+            style={[
+              styles.input,
+              focusedField === 'password' && { borderColor: loginTheme.main },
+            ]}
+            onFocus={() => setFocusedField('password')}
+            onBlur={() => setFocusedField(null)}
+          />
+        </View>
 
-        <Text style={styles.signupText} onPress={() => navigation.goBack()}>
-          Don't have an account? <Text style={styles.signupLink}>Sign up</Text>
+        {/* Error Message */}
+        {error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        {/* Submit Button */}
+        <TouchableOpacity
+          onPress={handleLogin}
+          disabled={loading}
+          activeOpacity={0.8}
+          style={styles.submitButton}
+        >
+          <Text style={styles.submitButtonText}>
+            {loading ? 'Signing In...' : 'Sign In'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Signup Link */}
+      <View style={styles.signupContainer}>
+        <Text style={styles.signupText}>
+          Don't have an account?{' '}
+          <Text style={styles.signupLink} onPress={() => navigation.goBack()}>
+            Create Account
+          </Text>
         </Text>
       </View>
     </ScreenContainer>
@@ -111,30 +162,104 @@ export default function LoginScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    backgroundColor: colors.background,
+    paddingVertical: spacing['3xl'],
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    padding: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+  backIcon: {
+    fontSize: 24,
+    color: colors.text,
+  },
   header: {
     marginBottom: spacing['2xl'],
   },
   title: {
-    fontSize: typography.fontSize['3xl'],
-    fontWeight: typography.fontWeight.bold,
+    fontSize: 38,
+    fontWeight: 'bold',
     color: colors.text,
     marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     color: colors.textSecondary,
   },
-  form: {
-    gap: spacing.base,
+  formCard: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 24,
+    borderWidth: 4,
+    borderColor: loginTheme.main,
+    borderBottomWidth: 5,
+    borderBottomColor: loginTheme.dark,
+    padding: 28,
+    marginBottom: spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  inputContainer: {
+    marginBottom: spacing.lg,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3D3D3D',
+    marginBottom: 8,
+  },
+  input: {
+    width: '100%',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.border,
+    fontSize: 16,
+    color: colors.text,
+    backgroundColor: colors.background,
+  },
+  errorContainer: {
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#FEE',
+    borderWidth: 2,
+    borderColor: '#FCC',
+    marginBottom: spacing.base,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#C33',
+  },
+  submitButton: {
+    padding: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    backgroundColor: loginTheme.main,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  submitButtonText: {
+    color: colors.backgroundSecondary,
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  signupContainer: {
+    alignItems: 'center',
   },
   signupText: {
-    fontSize: typography.fontSize.sm,
+    fontSize: 15,
     color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.lg,
   },
   signupLink: {
-    color: colors.primary,
-    fontWeight: typography.fontWeight.semibold,
+    color: loginTheme.main,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });

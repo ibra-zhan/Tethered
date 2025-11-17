@@ -8,6 +8,7 @@ export type RootStackParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList>;
   ProfileSetup: undefined;
   Main: NavigatorScreenParams<MainTabParamList>;
+  Prompt: { question: string };
 };
 
 // Auth Stack

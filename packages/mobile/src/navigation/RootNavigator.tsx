@@ -8,6 +8,7 @@ import { RootStackParamList } from './types';
 import AuthStack from './AuthStack';
 import MainTabs from './MainTabs';
 import ProfileSetupScreen from '../screens/ProfileSetupScreen';
+import PromptScreen from '../screens/PromptScreen';
 import { colors } from '../theme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -91,7 +92,17 @@ export default function RootNavigator() {
         ) : !hasProfile ? (
           <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
         ) : (
-          <Stack.Screen name="Main" component={MainTabs} />
+          <>
+            <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen
+              name="Prompt"
+              component={PromptScreen}
+              options={{
+                presentation: 'modal',
+                animation: 'slide_from_bottom',
+              }}
+            />
+          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>

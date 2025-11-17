@@ -16,3 +16,11 @@ export const theme = {
 };
 
 export type Theme = typeof theme;
+
+// Helper function to get theme colors based on user type
+export const getUserThemeColors = (userType: 'student' | 'parent') => ({
+  main: userType === 'student' ? colors.student : colors.parent,
+  dark: userType === 'student' ? colors.studentDark : colors.parentDark,
+  light: userType === 'student' ? colors.studentLight : colors.parentLight,
+  emoji: userType === 'student' ? '📚' : '👨‍👩‍👧',
+});

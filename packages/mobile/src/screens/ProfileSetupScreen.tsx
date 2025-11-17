@@ -1,17 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet, Alert, TouchableOpacity, TextInput } from 'react-native';
 import { RootStackScreenProps } from '../navigation/types';
 import ScreenContainer from '../components/ScreenContainer';
-import Button from '../components/Button';
-import Input from '../components/Input';
-import Card from '../components/Card';
 import {
   useAuth,
   userProfileService,
-  familyConnectionService,
   UserType,
 } from '@tethered/shared';
-import { colors, spacing, typography } from '../theme';
+import { colors, spacing, getUserThemeColors } from '../theme';
 
 type Props = RootStackScreenProps<'ProfileSetup'>;
 
@@ -26,6 +22,8 @@ export default function ProfileSetupScreen({ navigation }: Props) {
   // Form state
   const [name, setName] = useState('');
   const [collegeName, setCollegeName] = useState('');
+  const [error, setError] = useState('');
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   // Check if profile already exists
   useEffect(() => {
@@ -52,8 +50,10 @@ export default function ProfileSetupScreen({ navigation }: Props) {
   const handleCreateProfile = async () => {
     if (!user) return;
 
+    setError('');
+
     if (!name.trim()) {
-      Alert.alert('Error', 'Please enter your name');
+      setError('Please enter your name');
       return;
     }
 
@@ -93,12 +93,14 @@ export default function ProfileSetupScreen({ navigation }: Props) {
 
     // If userType is student and no college name, require it
     if (userType === 'student' && !collegeName.trim()) {
-      Alert.alert('Error', 'Please enter your college name');
+      setError('Please enter your college name');
       return;
     }
 
     // Create profile with the userType
-    await createProfile(userType);
+    if (userType) {
+      await createProfile(userType);
+    }
   };
 
   const createProfile = async (type: UserType) => {
@@ -139,47 +141,211 @@ export default function ProfileSetupScreen({ navigation }: Props) {
     );
   }
 
+  // Get theme colors based on user type (default to student if not set)
+  const themeColors = getUserThemeColors(userType || 'student');
+
   return (
-    <ScreenContainer scroll>
+    <ScreenContainer style={styles.container} scroll>
+      {/* Header with Icon */}
       <View style={styles.header}>
+        {/* Icon */}
+        <View style={styles.iconContainer}>
+          <View
+            style={[
+              styles.iconCircle,
+              {
+                backgroundColor: themeColors.light,
+                borderColor: themeColors.main,
+              },
+            ]}
+          >
+            <Text style={styles.iconEmoji}>{themeColors.emoji}</Text>
+          </View>
+        </View>
+
         <Text style={styles.title}>Complete Your Profile</Text>
-        <Text style={styles.subtitle}>Let's get you set up</Text>
+        <Text style={styles.subtitle}>Tell us a bit about yourself</Text>
       </View>
 
-      <View style={styles.form}>
-        <Input label="Your Name" value={name} onChangeText={setName} placeholder="John Doe" />
-
-        {userType === 'student' && (
-          <Input
-            label="College Name"
-            value={collegeName}
-            onChangeText={setCollegeName}
-            placeholder="University Name"
+      {/* Form Card */}
+      <View
+        style={[
+          styles.formCard,
+          {
+            borderColor: themeColors.main,
+            borderBottomColor: themeColors.dark,
+          },
+        ]}
+      >
+        {/* Name Input */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Your Name</Text>
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            placeholder={userType === 'student' ? 'Alex Smith' : 'Mom / Dad'}
+            placeholderTextColor={colors.textTertiary}
+            style={[
+              styles.input,
+              focusedField === 'name' && { borderColor: themeColors.main },
+            ]}
+            onFocus={() => setFocusedField('name')}
+            onBlur={() => setFocusedField(null)}
           />
+        </View>
+
+        {/* College Input (only for students) */}
+        {userType === 'student' && (
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>College Name</Text>
+            <TextInput
+              value={collegeName}
+              onChangeText={setCollegeName}
+              placeholder="University of California"
+              placeholderTextColor={colors.textTertiary}
+              style={[
+                styles.input,
+                focusedField === 'college' && { borderColor: themeColors.main },
+              ]}
+              onFocus={() => setFocusedField('college')}
+              onBlur={() => setFocusedField(null)}
+            />
+          </View>
         )}
 
-        <Button title="Create Profile" onPress={handleCreateProfile} loading={loading} size="lg" />
+        {/* Error Message */}
+        {error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        {/* Submit Button */}
+        <TouchableOpacity
+          onPress={handleCreateProfile}
+          disabled={loading}
+          activeOpacity={0.8}
+          style={[styles.submitButton, { backgroundColor: themeColors.main }]}
+        >
+          <Text style={styles.submitButtonText}>
+            {loading ? 'Creating Profile...' : 'Continue'}
+          </Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Info text */}
+      <Text style={styles.infoText}>
+        You'll be able to connect with your family member in the next step
+      </Text>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    backgroundColor: colors.background,
+    paddingVertical: spacing['3xl'],
+  },
   header: {
     marginBottom: spacing['2xl'],
+    alignItems: 'center',
+  },
+  iconContainer: {
+    marginBottom: spacing.lg,
+  },
+  iconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  iconEmoji: {
+    fontSize: 42,
   },
   title: {
-    fontSize: typography.fontSize['3xl'],
-    fontWeight: typography.fontWeight.bold,
+    fontSize: 38,
+    fontWeight: 'bold',
     color: colors.text,
     marginBottom: spacing.sm,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     color: colors.textSecondary,
+    textAlign: 'center',
   },
-  form: {
-    gap: spacing.base,
+  formCard: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 24,
+    borderWidth: 4,
+    borderBottomWidth: 5,
+    padding: 28,
+    marginBottom: spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  inputContainer: {
+    marginBottom: spacing.lg,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3D3D3D',
+    marginBottom: 8,
+  },
+  input: {
+    width: '100%',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.border,
+    fontSize: 16,
+    color: colors.text,
+    backgroundColor: colors.background,
+  },
+  errorContainer: {
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#FEE',
+    borderWidth: 2,
+    borderColor: '#FCC',
+    marginBottom: spacing.base,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#C33',
+  },
+  submitButton: {
+    padding: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  submitButtonText: {
+    color: colors.backgroundSecondary,
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  infoText: {
+    fontSize: 14,
+    color: colors.textTertiary,
+    textAlign: 'center',
+    lineHeight: 21,
+    paddingHorizontal: spacing.lg,
   },
   center: {
     flex: 1,
@@ -187,33 +353,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: typography.fontSize.lg,
+    fontSize: 18,
     color: colors.textSecondary,
-  },
-  codeCard: {
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
-  codeTitle: {
-    fontSize: typography.fontSize.xl,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.text,
-    marginBottom: spacing.base,
-  },
-  code: {
-    fontSize: typography.fontSize['4xl'],
-    fontWeight: typography.fontWeight.bold,
-    color: colors.primary,
-    marginBottom: spacing.base,
-    letterSpacing: 4,
-  },
-  codeInstructions: {
-    fontSize: typography.fontSize.sm,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: spacing.xl,
-  },
-  doneButton: {
-    width: '100%',
   },
 });
