@@ -5,7 +5,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { AuthProvider, initSupabase, queryClient } from '@tethered/shared';
+import { initSupabase, queryClient } from '@tethered/shared';
+import { AppProvider } from './src/context/AppContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import { colors } from './src/theme';
 
@@ -27,9 +28,7 @@ export default function App() {
         console.error('Failed to initialize Supabase:', error);
       }
     } else {
-      console.error('Missing Supabase credentials. Please check your .env file.');
-      console.error('EXPO_PUBLIC_SUPABASE_URL:', supabaseUrl);
-      console.error('EXPO_PUBLIC_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'Present but hidden' : 'Missing');
+      console.warn('Missing Supabase credentials. Using mock data.');
     }
   }, []);
 
@@ -37,10 +36,10 @@ export default function App() {
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <StatusBar style="light" />
+          <AppProvider>
+            <StatusBar style="dark" />
             <RootNavigator />
-          </AuthProvider>
+          </AppProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

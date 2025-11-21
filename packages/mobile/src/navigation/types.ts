@@ -8,21 +8,26 @@ export type RootStackParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList>;
   ProfileSetup: undefined;
   Main: NavigatorScreenParams<MainTabParamList>;
+  Profile: undefined;
   Prompt: { question: string };
+  FamilyConnections: undefined;
+  AddFamilyMember: undefined;
+  JoinFamily: undefined;
 };
 
 // Auth Stack
 export type AuthStackParamList = {
   Onboarding: undefined;
+  RoleSelection: { mode: 'signup' | 'login' };
   Signup: { userType: 'student' | 'parent' };
-  Login: undefined;
+  Login: { userType: 'student' | 'parent' };
 };
 
 // Main Tab Navigator
 export type MainTabParamList = {
   Home: undefined;
-  Inbox: undefined;
-  Profile: undefined;
+  CheckIn: undefined;
+  Timeline: undefined;
 };
 
 // Screen Props Types

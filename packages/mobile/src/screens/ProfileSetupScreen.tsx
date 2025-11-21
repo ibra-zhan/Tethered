@@ -1,359 +1,166 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert, TouchableOpacity, TextInput } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { RootStackScreenProps } from '../navigation/types';
-import ScreenContainer from '../components/ScreenContainer';
-import {
-  useAuth,
-  userProfileService,
-  UserType,
-} from '@tethered/shared';
-import { colors, spacing, getUserThemeColors } from '../theme';
+import { useApp } from '../context/AppContext';
+import { colors } from '../theme';
 
 type Props = RootStackScreenProps<'ProfileSetup'>;
 
 export default function ProfileSetupScreen({ navigation }: Props) {
-  const { user } = useAuth();
+  const { currentUser, updateProfile } = useApp();
 
-  const [loading, setLoading] = useState(false);
-  const [checkingProfile, setCheckingProfile] = useState(true);
-  const [userType, setUserType] = useState<UserType | null>(null);
-  const [showingAlert, setShowingAlert] = useState(false);
-
-  // Form state
   const [name, setName] = useState('');
-  const [collegeName, setCollegeName] = useState('');
   const [error, setError] = useState('');
-  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  // Check if profile already exists
-  useEffect(() => {
-    checkExistingProfile();
-  }, []);
-
-  const checkExistingProfile = async () => {
-    if (!user) return;
-
-    try {
-      const hasProfile = await userProfileService.hasProfile(user.id);
-
-      if (hasProfile) {
-        // Profile exists, RootNavigator will handle navigation
-        console.log('[ProfileSetup] Profile exists, letting RootNavigator handle navigation');
-      }
-    } catch (error) {
-      console.error('Error checking profile:', error);
-    } finally {
-      setCheckingProfile(false);
-    }
-  };
-
-  const handleCreateProfile = async () => {
-    if (!user) return;
-
+  const handleComplete = async () => {
     setError('');
+    setLoading(true);
 
     if (!name.trim()) {
       setError('Please enter your name');
+      setLoading(false);
       return;
     }
-
-    // Ask for user type if not set
-    if (!userType && !showingAlert) {
-      setShowingAlert(true);
-      Alert.alert(
-        'Select Your Role',
-        'Are you a student or a parent?',
-        [
-          {
-            text: 'Student',
-            onPress: () => {
-              console.log('User selected: Student');
-              setUserType('student');
-              setShowingAlert(false);
-            },
-          },
-          {
-            text: 'Parent',
-            onPress: () => {
-              console.log('User selected: Parent');
-              setUserType('parent');
-              setShowingAlert(false);
-              // Parents don't need college, create profile immediately
-              setTimeout(() => createProfile('parent'), 100);
-            },
-          },
-        ],
-        {
-          cancelable: false,
-          onDismiss: () => setShowingAlert(false)
-        }
-      );
-      return;
-    }
-
-    // If userType is student and no college name, require it
-    if (userType === 'student' && !collegeName.trim()) {
-      setError('Please enter your college name');
-      return;
-    }
-
-    // Create profile with the userType
-    if (userType) {
-      await createProfile(userType);
-    }
-  };
-
-  const createProfile = async (type: UserType) => {
-    if (!user || !name.trim()) return;
-
-    console.log('Creating profile with type:', type);
-
-    setLoading(true);
 
     try {
-      const profile = await userProfileService.createProfile(user.id, {
-        name: name.trim(),
-        user_type: type,
-        college_name: type === 'student' ? collegeName.trim() : undefined,
-      });
-
-      console.log('[ProfileSetup] Profile created:', profile);
-
-      // Profile created - RootNavigator will automatically detect and navigate
-      // Just give user feedback
-      Alert.alert('Profile Created!', 'Welcome to Tethered!');
-    } catch (error: any) {
-      console.error('Error creating profile:', error);
-      Alert.alert('Error', error.message || 'Failed to create profile');
-    } finally {
+      await updateProfile(name.trim());
+      // Navigation will happen automatically via auth state change
+    } catch (err: any) {
+      setError(err.message || 'Failed to update profile');
       setLoading(false);
     }
   };
 
-
-  if (checkingProfile) {
-    return (
-      <ScreenContainer>
-        <View style={styles.center}>
-          <Text style={styles.loadingText}>Loading...</Text>
-        </View>
-      </ScreenContainer>
-    );
-  }
-
-  // Get theme colors based on user type (default to student if not set)
-  const themeColors = getUserThemeColors(userType || 'student');
-
   return (
-    <ScreenContainer style={styles.container} scroll>
-      {/* Header with Icon */}
-      <View style={styles.header}>
-        {/* Icon */}
-        <View style={styles.iconContainer}>
-          <View
-            style={[
-              styles.iconCircle,
-              {
-                backgroundColor: themeColors.light,
-                borderColor: themeColors.main,
-              },
-            ]}
-          >
-            <Text style={styles.iconEmoji}>{themeColors.emoji}</Text>
-          </View>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.content}>
+        <View style={styles.header}>
+          <Text style={styles.emoji}>
+            {currentUser?.role === 'student' ? '📚' : '👨‍👩‍👧'}
+          </Text>
+          <Text style={styles.title}>Welcome!</Text>
+          <Text style={styles.subtitle}>Let's set up your profile</Text>
         </View>
 
-        <Text style={styles.title}>Complete Your Profile</Text>
-        <Text style={styles.subtitle}>Tell us a bit about yourself</Text>
-      </View>
-
-      {/* Form Card */}
-      <View
-        style={[
-          styles.formCard,
-          {
-            borderColor: themeColors.main,
-            borderBottomColor: themeColors.dark,
-          },
-        ]}
-      >
-        {/* Name Input */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Your Name</Text>
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder={userType === 'student' ? 'Alex Smith' : 'Mom / Dad'}
-            placeholderTextColor={colors.textTertiary}
-            style={[
-              styles.input,
-              focusedField === 'name' && { borderColor: themeColors.main },
-            ]}
-            onFocus={() => setFocusedField('name')}
-            onBlur={() => setFocusedField(null)}
-          />
-        </View>
-
-        {/* College Input (only for students) */}
-        {userType === 'student' && (
+        <View style={styles.form}>
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>College Name</Text>
+            <Text style={styles.label}>What's your name?</Text>
             <TextInput
-              value={collegeName}
-              onChangeText={setCollegeName}
-              placeholder="University of California"
+              style={styles.input}
+              placeholder="Enter your name"
               placeholderTextColor={colors.textTertiary}
-              style={[
-                styles.input,
-                focusedField === 'college' && { borderColor: themeColors.main },
-              ]}
-              onFocus={() => setFocusedField('college')}
-              onBlur={() => setFocusedField(null)}
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+              autoFocus
             />
           </View>
-        )}
 
-        {/* Error Message */}
-        {error ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
-        {/* Submit Button */}
-        <TouchableOpacity
-          onPress={handleCreateProfile}
-          disabled={loading}
-          activeOpacity={0.8}
-          style={[styles.submitButton, { backgroundColor: themeColors.main }]}
-        >
-          <Text style={styles.submitButtonText}>
-            {loading ? 'Creating Profile...' : 'Continue'}
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleComplete}
+            activeOpacity={0.8}
+            style={styles.submitButton}>
+            <Text style={styles.submitButtonText}>Continue</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.hint}>
+          {currentUser?.role === 'student'
+            ? 'This name will be visible to your parents'
+            : 'This name will be visible to your student'}
+        </Text>
       </View>
-
-      {/* Info text */}
-      <Text style={styles.infoText}>
-        You'll be able to connect with your family member in the next step
-      </Text>
-    </ScreenContainer>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.background,
-    paddingVertical: spacing['3xl'],
+    flex: 1,
+    backgroundColor: colors.brandCream,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    justifyContent: 'center',
   },
   header: {
-    marginBottom: spacing['2xl'],
     alignItems: 'center',
+    marginBottom: 48,
   },
-  iconContainer: {
-    marginBottom: spacing.lg,
-  },
-  iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  iconEmoji: {
-    fontSize: 42,
+  emoji: {
+    fontSize: 80,
+    marginBottom: 24,
   },
   title: {
     fontSize: 38,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: colors.text,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 18,
     color: colors.textSecondary,
     textAlign: 'center',
   },
-  formCard: {
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: 24,
-    borderWidth: 4,
-    borderBottomWidth: 5,
-    padding: 28,
-    marginBottom: spacing.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 8,
+  form: {
+    marginBottom: 24,
   },
   inputContainer: {
-    marginBottom: spacing.lg,
+    marginBottom: 20,
   },
   label: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#3D3D3D',
-    marginBottom: 8,
+    color: colors.text,
+    marginBottom: 12,
   },
   input: {
-    width: '100%',
-    padding: 14,
-    borderRadius: 12,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 18,
+    fontSize: 18,
+    color: colors.text,
     borderWidth: 2,
     borderColor: colors.border,
-    fontSize: 16,
-    color: colors.text,
-    backgroundColor: colors.background,
   },
   errorContainer: {
-    padding: 12,
-    borderRadius: 12,
     backgroundColor: '#FEE',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
     borderWidth: 2,
     borderColor: '#FCC',
-    marginBottom: spacing.base,
   },
   errorText: {
     fontSize: 14,
     color: '#C33',
+    textAlign: 'center',
   },
   submitButton: {
-    padding: 16,
+    padding: 20,
     borderRadius: 16,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 5,
+    backgroundColor: colors.brandDark,
+    marginTop: 8,
   },
   submitButtonText: {
-    color: colors.backgroundSecondary,
+    color: '#fff',
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  infoText: {
+  hint: {
     fontSize: 14,
     color: colors.textTertiary,
     textAlign: 'center',
-    lineHeight: 21,
-    paddingHorizontal: spacing.lg,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 18,
-    color: colors.textSecondary,
+    fontStyle: 'italic',
   },
 });

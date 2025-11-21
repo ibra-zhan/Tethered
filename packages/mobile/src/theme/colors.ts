@@ -1,6 +1,12 @@
 export const colors = {
-  // Light theme - matching design reference
-  background: '#FAFAFA',
+  // Brand colors from web design
+  brandOrange: '#FF8C66',
+  brandGreen: '#8FB3A6',
+  brandCream: '#FDFBF7',
+  brandDark: '#2D3748',
+
+  // Light theme - matching web design
+  background: '#FDFBF7',
   backgroundSecondary: '#FFFFFF',
   backgroundTertiary: '#F5F5F5',
 
@@ -9,20 +15,20 @@ export const colors = {
   textSecondary: '#8E8E8E',
   textTertiary: '#B0B0B0',
 
-  // Primary (Purple for prompts/accents)
-  primary: '#D8C5E8',
-  primaryDark: '#C5B0D8',
-  primaryLight: '#E8D5F0',
+  // Primary (Orange for main actions)
+  primary: '#FF8C66',
+  primaryDark: '#E5734D',
+  primaryLight: '#FFB399',
 
-  // Student theme (Gold)
-  student: '#D4A574',
-  studentDark: '#B48554',
-  studentLight: '#F5D7B8',
+  // Student theme (Orange)
+  student: '#FF8C66',
+  studentDark: '#E5734D',
+  studentLight: '#FFB399',
 
-  // Parent theme (Green)
-  parent: '#A8B598',
-  parentDark: '#8A9178',
-  parentLight: '#C8D5B8',
+  // Parent theme (Sage Green)
+  parent: '#8FB3A6',
+  parentDark: '#789A8D',
+  parentLight: '#A8C5B9',
 
   // Status
   success: '#4ade80',

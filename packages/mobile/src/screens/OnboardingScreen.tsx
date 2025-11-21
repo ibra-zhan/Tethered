@@ -1,216 +1,236 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, {
+  FadeInDown,
+  FadeIn,
+  ZoomIn,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { AuthStackScreenProps } from '../navigation/types';
-import ScreenContainer from '../components/ScreenContainer';
-import { colors, spacing, typography } from '../theme';
+import { colors } from '../theme';
 
 type Props = AuthStackScreenProps<'Onboarding'>;
 
+const AnimatedAura = () => {
+  const auraStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        {
+          scale: withRepeat(
+            withTiming(1.2, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+            -1,
+            true
+          ),
+        },
+      ],
+      opacity: withRepeat(
+        withTiming(0.6, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+        -1,
+        true
+      ),
+    };
+  });
+
+  return <Animated.View style={[styles.aura, auraStyle]} />;
+};
+
 export default function OnboardingScreen({ navigation }: Props) {
+  console.log('[OnboardingScreen] Rendering OnboardingScreen');
+
+  const handleGetStarted = () => {
+    console.log('[OnboardingScreen] Get Started pressed');
+    navigation.navigate('RoleSelection', { mode: 'signup' });
+  };
+
+  const handleLogin = () => {
+    console.log('[OnboardingScreen] I have an account pressed');
+    navigation.navigate('RoleSelection', { mode: 'login' });
+  };
+
   return (
-    <ScreenContainer style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      {/* Decorative background elements */}
+      <View style={styles.gradientTop} />
+      <View style={styles.blob1} />
+      <View style={styles.blob2} />
+
       <View style={styles.content}>
-        {/* App Icon / Logo */}
-        <View style={styles.logoContainer}>
-          <View style={styles.logo}>
-            <Text style={styles.logoEmoji}>🕯️</Text>
-          </View>
-        </View>
+        {/* Logo with Animated Aura */}
+        <Animated.View
+          entering={ZoomIn.duration(800)}
+          style={styles.logoContainer}>
+          <AnimatedAura />
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </Animated.View>
 
-        {/* Title */}
-        <Text style={styles.title}>Candle</Text>
+        {/* Title and Subtitle */}
+        <Animated.View
+          entering={FadeIn.delay(300).duration(600)}
+          style={styles.textContainer}>
+          <Text style={styles.title}>Tethered</Text>
+          <Text style={styles.subtitle}>
+            Keep the flame alive.{'\n'}
+            Authentic daily connections for{'\n'}
+            students and parents.
+          </Text>
+        </Animated.View>
 
-        {/* Subtitle */}
-        <Text style={styles.subtitle}>
-          Stay connected with your family through daily moments
-        </Text>
-
-        {/* User Type Selection Cards */}
-        <View style={styles.cardsContainer}>
-          {/* Student Button */}
+        {/* Action Buttons */}
+        <Animated.View
+          entering={FadeInDown.delay(600).duration(600)}
+          style={styles.buttonContainer}>
           <TouchableOpacity
-            onPress={() => navigation.navigate('Signup', { userType: 'student' })}
+            onPress={handleGetStarted}
             activeOpacity={0.8}
-            style={[
-              styles.card,
-              {
-                borderColor: colors.student,
-                borderBottomColor: colors.studentDark,
-              },
-            ]}
-          >
-            <View style={styles.cardContent}>
-              {/* Icon */}
-              <View
-                style={[
-                  styles.iconCircle,
-                  {
-                    backgroundColor: colors.studentLight,
-                    borderColor: colors.student,
-                  },
-                ]}
-              >
-                <Text style={styles.iconEmoji}>🎓</Text>
-              </View>
-
-              {/* Text */}
-              <View style={styles.cardText}>
-                <Text style={styles.cardTitle}>I'm a Student</Text>
-                <Text style={styles.cardDescription}>Connect with your parents</Text>
-              </View>
-
-              {/* Arrow */}
-              <Text style={[styles.arrow, { color: colors.student }]}>→</Text>
-            </View>
+            style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>Get Started</Text>
           </TouchableOpacity>
 
-          {/* Parent Button */}
           <TouchableOpacity
-            onPress={() => navigation.navigate('Signup', { userType: 'parent' })}
+            onPress={handleLogin}
             activeOpacity={0.8}
-            style={[
-              styles.card,
-              {
-                borderColor: colors.parent,
-                borderBottomColor: colors.parentDark,
-              },
-            ]}
-          >
-            <View style={styles.cardContent}>
-              {/* Icon */}
-              <View
-                style={[
-                  styles.iconCircle,
-                  {
-                    backgroundColor: colors.parentLight,
-                    borderColor: colors.parent,
-                  },
-                ]}
-              >
-                <Text style={styles.iconEmoji}>👨‍👩‍👧</Text>
-              </View>
-
-              {/* Text */}
-              <View style={styles.cardText}>
-                <Text style={styles.cardTitle}>I'm a Parent</Text>
-                <Text style={styles.cardDescription}>Stay close to your student</Text>
-              </View>
-
-              {/* Arrow */}
-              <Text style={[styles.arrow, { color: colors.parent }]}>→</Text>
-            </View>
+            style={styles.secondaryButton}>
+            <Text style={styles.secondaryButtonText}>I have an account</Text>
           </TouchableOpacity>
-        </View>
-
-        {/* Footer text */}
-        <Text style={styles.footer}>Meaningful connections, daily moments</Text>
+        </Animated.View>
       </View>
-    </ScreenContainer>
+
+      {/* Footer */}
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>DESIGNED FOR FAMILIES</Text>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.background,
+    flex: 1,
+    backgroundColor: colors.brandCream,
+  },
+  gradientTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    backgroundColor: '#FFF5F0',
+    opacity: 0.5,
+  },
+  blob1: {
+    position: 'absolute',
+    top: -80,
+    right: -80,
+    width: 256,
+    height: 256,
+    borderRadius: 128,
+    backgroundColor: `${colors.brandOrange}08`,
+  },
+  blob2: {
+    position: 'absolute',
+    top: 160,
+    left: -80,
+    width: 288,
+    height: 288,
+    borderRadius: 144,
+    backgroundColor: `${colors.brandGreen}08`,
   },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: 32,
+    zIndex: 10,
   },
   logoContainer: {
-    marginBottom: spacing.xl,
+    marginBottom: 48,
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 200,
+    height: 200,
   },
   logo: {
-    width: 100,
-    height: 100,
-    borderRadius: 28,
-    backgroundColor: colors.studentLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: colors.studentLight,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 24,
-    elevation: 10,
+    width: 160,
+    height: 160,
+    zIndex: 10,
   },
-  logoEmoji: {
-    fontSize: 56,
+  aura: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: colors.brandOrange,
+    opacity: 0.2,
+  },
+  textContainer: {
+    alignItems: 'center',
+    marginBottom: 48,
   },
   title: {
-    fontSize: 42,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
+    fontSize: 48,
+    fontWeight: '700',
+    color: colors.brandDark,
+    marginBottom: 16,
+    letterSpacing: -1,
   },
   subtitle: {
     fontSize: 18,
     color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: spacing['4xl'],
-    maxWidth: 320,
     lineHeight: 27,
+    fontWeight: '500',
   },
-  cardsContainer: {
+  buttonContainer: {
     width: '100%',
-    maxWidth: 400,
-    gap: spacing.base,
+    maxWidth: 320,
+    gap: 16,
   },
-  card: {
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: 24,
-    borderWidth: 4,
-    borderBottomWidth: 5,
-    padding: 28,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
+  primaryButton: {
+    backgroundColor: colors.brandDark,
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
     shadowRadius: 16,
     elevation: 8,
   },
-  cardContent: {
-    flexDirection: 'row',
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  secondaryButton: {
+    backgroundColor: '#fff',
+    paddingVertical: 16,
+    borderRadius: 16,
     alignItems: 'center',
-    gap: spacing.base,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
-  iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  iconEmoji: {
-    fontSize: 36,
-  },
-  cardText: {
-    flex: 1,
-  },
-  cardTitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  cardDescription: {
-    fontSize: 15,
+  secondaryButtonText: {
     color: colors.textSecondary,
-  },
-  arrow: {
-    fontSize: 24,
+    fontSize: 18,
+    fontWeight: '700',
   },
   footer: {
-    fontSize: 13,
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 10,
     color: colors.textTertiary,
-    textAlign: 'center',
-    marginTop: spacing['4xl'],
+    letterSpacing: 2,
+    fontWeight: '700',
   },
 });

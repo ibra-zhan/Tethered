@@ -1,311 +1,361 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
-import { MainTabScreenProps } from '../navigation/types';
-import ScreenContainer from '../components/ScreenContainer';
 import {
-  useAuth,
-  userProfileService,
-  familyConnectionService,
-  UserProfile,
-} from '@tethered/shared';
-import { colors, spacing, getUserThemeColors } from '../theme';
+  View,
+  Text,
+  StyleSheet,
+  Alert,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { RootStackScreenProps } from '../navigation/types';
+import { useApp } from '../context/AppContext';
+import { supabase } from '../lib/supabase';
+import { colors } from '../theme';
 
-type Props = MainTabScreenProps<'Profile'>;
+type Props = RootStackScreenProps<'Profile'>;
+
+interface FamilyMember {
+  id: string;
+  name: string;
+  role: 'student' | 'parent';
+  streakDays: number;
+}
 
 export default function ProfileScreen({ navigation }: Props) {
-  const { user, signOut } = useAuth();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [partner, setPartner] = useState<UserProfile | null>(null);
+  const { currentUser, logout } = useApp();
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadProfile();
+    loadFamilyMembers();
   }, []);
 
-  const loadProfile = async () => {
-    if (!user) return;
+  const loadFamilyMembers = async () => {
+    if (!currentUser) return;
 
     try {
-      const [userProfile, partnerProfile] = await Promise.all([
-        userProfileService.getProfile(user.id),
-        familyConnectionService.getConnectionPartner(user.id),
-      ]);
-      setProfile(userProfile);
-      setPartner(partnerProfile);
+      const { data, error } = await supabase.rpc('get_family_members', {
+        p_user_id: currentUser.id,
+      });
+
+      if (error) {
+        console.error('Error loading family members:', error);
+      } else if (data) {
+        setFamilyMembers(
+          data.map((member: any) => ({
+            id: member.member_id,
+            name: member.member_name,
+            role: member.member_role,
+            streakDays: member.member_streak_days || 0,
+          }))
+        );
+      }
     } catch (error) {
-      console.error('Error loading profile:', error);
+      console.error('Error loading family members:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleSignOut = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            await signOut();
-          },
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await logout();
+          } catch (error) {
+            Alert.alert('Error', 'Failed to sign out');
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
-  if (loading) {
-    return (
-      <ScreenContainer>
-        <View style={styles.center}>
-          <Text style={styles.loadingText}>Loading...</Text>
-        </View>
-      </ScreenContainer>
-    );
+  if (!currentUser) {
+    return null;
   }
 
-  const themeColors = profile ? getUserThemeColors(profile.user_type) : getUserThemeColors('student');
-
   return (
-    <ScreenContainer style={styles.container} scroll>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Profile</Text>
-      </View>
-
-      {profile && (
-        <>
-          {/* Profile Card */}
-          <View
-            style={[
-              styles.profileCard,
-              {
-                borderColor: themeColors.main,
-                borderBottomColor: themeColors.dark,
-              },
-            ]}
-          >
-            {/* Avatar Circle */}
-            <View
-              style={[
-                styles.avatarCircle,
-                {
-                  backgroundColor: themeColors.light,
-                  borderColor: themeColors.main,
-                },
-              ]}
-            >
-              <Text style={styles.avatarEmoji}>{themeColors.emoji}</Text>
-            </View>
-
-            {/* Profile Info */}
-            <View style={styles.profileInfo}>
-              <Text style={styles.name}>{profile.name}</Text>
-              <View style={styles.userTypeBadge}>
-                <Text style={styles.userTypeText}>
-                  {profile.user_type === 'student' ? 'Student' : 'Parent'}
-                </Text>
-              </View>
-              {profile.user_type === 'student' && profile.college_name && (
-                <Text style={styles.college}>{profile.college_name}</Text>
-              )}
-              {profile.user_type === 'parent' && partner && (
-                <Text style={styles.college}>Connected with {partner.name}</Text>
-              )}
-            </View>
-          </View>
-
-          {/* Family Code (Students only) */}
-          {profile.user_type === 'student' && profile.family_code && (
-            <View style={styles.codeCard}>
-              <Text style={styles.codeLabel}>Family Code</Text>
-              <Text style={[styles.code, { color: themeColors.main }]}>
-                {profile.family_code}
-              </Text>
-              <Text style={styles.codeSubtext}>
-                Share this code with your parent to connect
-              </Text>
-            </View>
-          )}
-
-          {/* Settings Menu */}
-          <View style={styles.settingsSection}>
-            {/* Account Settings */}
-            <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
-              <View style={styles.menuIconContainer}>
-                <Text style={styles.menuIcon}>👤</Text>
-              </View>
-              <Text style={styles.menuText}>Account Settings</Text>
-              <Text style={styles.menuChevron}>›</Text>
-            </TouchableOpacity>
-
-            {/* Notifications */}
-            <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
-              <View style={styles.menuIconContainer}>
-                <Text style={styles.menuIcon}>🔔</Text>
-              </View>
-              <Text style={styles.menuText}>Notifications</Text>
-              <Text style={styles.menuChevron}>›</Text>
-            </TouchableOpacity>
-
-            {/* Privacy & Security */}
-            <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
-              <View style={styles.menuIconContainer}>
-                <Text style={styles.menuIcon}>🛡️</Text>
-              </View>
-              <Text style={styles.menuText}>Privacy & Security</Text>
-              <Text style={styles.menuChevron}>›</Text>
-            </TouchableOpacity>
-
-            {/* Help & Support */}
-            <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
-              <View style={styles.menuIconContainer}>
-                <Text style={styles.menuIcon}>❓</Text>
-              </View>
-              <Text style={styles.menuText}>Help & Support</Text>
-              <Text style={styles.menuChevron}>›</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Sign Out Button */}
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={styles.header}>
           <TouchableOpacity
-            onPress={handleSignOut}
-            style={styles.signOutButton}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.signOutIcon}>🚪</Text>
-            <Text style={styles.signOutText}>Sign Out</Text>
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}>
+            <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
-        </>
-      )}
-    </ScreenContainer>
+          <Text style={styles.title}>Profile</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+
+        {/* Profile Card */}
+        <View style={styles.profileCard}>
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarEmoji}>
+              {currentUser.role === 'student' ? '🎓' : '👨‍👩‍👧'}
+            </Text>
+          </View>
+
+          <View style={styles.profileInfo}>
+            <Text style={styles.name}>{currentUser.name}</Text>
+            <View style={styles.roleBadge}>
+              <Text style={styles.roleText}>
+                {currentUser.role === 'student' ? 'Student' : 'Parent'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Family Connections Summary */}
+        {loading ? (
+          <View style={styles.loadingCard}>
+            <ActivityIndicator size="small" color={colors.brandOrange} />
+          </View>
+        ) : familyMembers.length > 0 ? (
+          <View style={styles.familyCard}>
+            <Text style={styles.familyLabel}>CONNECTED FAMILY</Text>
+            {familyMembers.map((member) => (
+              <View key={member.id} style={styles.familyMember}>
+                <View style={styles.familyMemberLeft}>
+                  <Text style={styles.familyMemberEmoji}>
+                    {member.role === 'student' ? '🎓' : '👨‍👩‍👧'}
+                  </Text>
+                  <View>
+                    <Text style={styles.familyMemberName}>{member.name}</Text>
+                    <Text style={styles.familyMemberRole}>
+                      {member.role === 'student' ? 'Student' : 'Parent'}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.streakBadge}>
+                  <Text style={styles.streakNumber}>{member.streakDays}</Text>
+                  <Text style={styles.streakLabel}>🔥</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        {/* Settings Menu */}
+        <View style={styles.settingsSection}>
+          {/* Family Connections */}
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('FamilyConnections')}>
+            <View style={styles.menuIconContainer}>
+              <Text style={styles.menuIcon}>👨‍👩‍👧‍👦</Text>
+            </View>
+            <Text style={styles.menuText}>Family Connections</Text>
+            <Text style={styles.menuChevron}>›</Text>
+          </TouchableOpacity>
+
+          {/* Account Settings */}
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuIconContainer}>
+              <Text style={styles.menuIcon}>👤</Text>
+            </View>
+            <Text style={styles.menuText}>Account Settings</Text>
+            <Text style={styles.menuChevron}>›</Text>
+          </TouchableOpacity>
+
+          {/* Notifications */}
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuIconContainer}>
+              <Text style={styles.menuIcon}>🔔</Text>
+            </View>
+            <Text style={styles.menuText}>Notifications</Text>
+            <Text style={styles.menuChevron}>›</Text>
+          </TouchableOpacity>
+
+          {/* Privacy & Security */}
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuIconContainer}>
+              <Text style={styles.menuIcon}>🛡️</Text>
+            </View>
+            <Text style={styles.menuText}>Privacy & Security</Text>
+            <Text style={styles.menuChevron}>›</Text>
+          </TouchableOpacity>
+
+          {/* Help & Support */}
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuIconContainer}>
+              <Text style={styles.menuIcon}>❓</Text>
+            </View>
+            <Text style={styles.menuText}>Help & Support</Text>
+            <Text style={styles.menuChevron}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Sign Out Button */}
+        <TouchableOpacity onPress={handleSignOut} style={styles.signOutButton}>
+          <Text style={styles.signOutIcon}>🚪</Text>
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.background,
+    flex: 1,
+    backgroundColor: colors.brandCream,
+  },
+  scrollView: {
+    flex: 1,
+    paddingHorizontal: 24,
   },
   header: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing['3xl'],
-    paddingBottom: spacing.lg,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 24,
   },
-  title: {
-    fontSize: 38,
-    fontWeight: 'bold',
-    color: colors.text,
-  },
-  center: {
-    flex: 1,
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
-  loadingText: {
-    fontSize: 18,
-    color: colors.textSecondary,
+  backButtonText: {
+    fontSize: 24,
+    color: colors.text,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  headerSpacer: {
+    width: 40,
   },
   profileCard: {
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: 24,
-    borderWidth: 4,
-    borderBottomWidth: 5,
-    padding: 28,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.xl,
+    backgroundColor: '#fff',
+    borderRadius: 32,
+    padding: 32,
+    marginBottom: 16,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 8,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
   avatarCircle: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    borderWidth: 4,
+    backgroundColor: colors.backgroundTertiary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.base,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
+    marginBottom: 16,
+    borderWidth: 3,
+    borderColor: colors.brandOrange,
   },
   avatarEmoji: {
-    fontSize: 52,
+    fontSize: 48,
   },
   profileInfo: {
     alignItems: 'center',
   },
   name: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: colors.text,
-    marginBottom: spacing.xs,
+    marginBottom: 8,
   },
-  userTypeBadge: {
+  roleBadge: {
     backgroundColor: colors.backgroundTertiary,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 6,
-    borderRadius: 12,
-    marginBottom: spacing.xs,
+    borderRadius: 16,
   },
-  userTypeText: {
+  roleText: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.textSecondary,
   },
-  college: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  codeCard: {
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: 20,
+  loadingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
     padding: 24,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.xl,
+    marginBottom: 16,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
-  codeLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
+  familyCard: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
-  code: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    letterSpacing: 4,
-    marginVertical: spacing.sm,
-  },
-  codeSubtext: {
-    fontSize: 13,
+  familyLabel: {
+    fontSize: 10,
+    fontWeight: '700',
     color: colors.textTertiary,
-    textAlign: 'center',
-    marginTop: spacing.xs,
+    letterSpacing: 1.5,
+    marginBottom: 16,
+  },
+  familyMember: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.backgroundTertiary,
+  },
+  familyMemberLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  familyMemberEmoji: {
+    fontSize: 32,
+  },
+  familyMemberName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  familyMemberRole: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.backgroundTertiary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  streakNumber: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.brandOrange,
+  },
+  streakLabel: {
+    fontSize: 12,
   },
   settingsSection: {
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: 20,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    marginBottom: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
   menuItem: {
     flexDirection: 'row',
@@ -315,25 +365,25 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.backgroundTertiary,
   },
   menuIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: colors.backgroundTertiary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.base,
+    marginRight: 12,
   },
   menuIcon: {
-    fontSize: 18,
+    fontSize: 20,
   },
   menuText: {
     flex: 1,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     color: colors.text,
   },
   menuChevron: {
-    fontSize: 28,
+    fontSize: 24,
     color: colors.textTertiary,
     fontWeight: '300',
   },
@@ -341,26 +391,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: 20,
+    backgroundColor: '#fff',
+    borderRadius: 24,
     padding: 18,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing['2xl'],
+    marginBottom: 100,
     borderWidth: 2,
     borderColor: '#FF6B6B',
-    shadowColor: '#FF6B6B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
   },
   signOutIcon: {
     fontSize: 20,
-    marginRight: spacing.sm,
+    marginRight: 8,
   },
   signOutText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#FF6B6B',
   },
 });
